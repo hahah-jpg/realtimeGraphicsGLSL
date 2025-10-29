@@ -1,5 +1,6 @@
 #version 300 es
 precision highp float;
+precision highp int;
 out vec4 fragColor;
 uniform float u_time;
 uniform vec2 u_resolution;
