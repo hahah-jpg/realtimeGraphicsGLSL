@@ -3,6 +3,9 @@ precision highp float;
 precision highp int;
 out vec4 fragColor;
 uniform float u_time;
+uniform vec2 u_resolution;
+ivec2 channel;
+
 uvec3 k = uvec3(0x456789abu, 0x6789ab45u, 0x89ab4567u); // 算術積で使う定数
 uvec3 u = uvec3(1, 2, 3); // シフト数
 const uint UINT_MAX = 0xffffffffu; // 符号なし整数の最大値
@@ -28,9 +31,30 @@ vec3 hash33(vec3 p) { // 引数･戻り値が3次元のfloat型ハッシュ関�
     uvec3 n = floatBitsToUint(p);
     return vec3(uhash33(n)) / vec3(UINT_MAX);
 }
+float hash21(vec2 p) { // 引数が2次元、戻り値が1次元のfloat型ハッシュ関数
+    uvec2 n = floatBitsToUint(p);
+    return float(uhash22(n).x) / float(UINT_MAX);
+}
+float hash31(vec3 p) { // 引数が2次元、戻り値が1次元のfloat型ハッシュ関数
+    uvec3 n = floatBitsToUint(p);
+    return float(uhash33(n).x) / float(UINT_MAX);
+}
 void main() {
-    float time = floor(60.0 * u_time); // 1秒に60カウント
-    vec2 pos = gl_FragCoord.xy + time; // フラグメント座標をずらす
-    fragColor.rgb = vec3(hash11(pos.x));
+    float time = floor(60.0 * u_time);
+    vec2 pos = gl_FragCoord.xy + time;
+    channel = ivec2(gl_FragCoord.xy * 2.0 / u_resolution.xy);
+    if (channel[0] == 0) {
+        if (channel[1] == 0) {
+            fragColor.rgb = vec3(hash21(pos));
+        } else {
+            fragColor.rgb = vec3(hash22(pos), 1.0);
+        }
+    } else {
+        if (channel[1] == 0) {
+            fragColor.rgb = vec3(hash31(vec3(pos, time)));
+        } else {
+            fragColor.rgb = hash33(vec3(pos, time));
+        }
+    }
     fragColor.a = 1.0;
 }
