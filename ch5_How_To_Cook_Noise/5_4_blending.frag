@@ -4,7 +4,7 @@ precision highp int;
 out vec4 fragColor;
 uniform float u_time;
 uniform vec2 u_resolution;
-ivec2 channel;
+int channel;
 
 const float PI = 3.1415926;
 
@@ -80,21 +80,23 @@ float warp21(vec2 p, float g) {
     return val;
 }
 
-float converter(float v) { // 階調変換関数
-    float time = abs(mod(0.1 * u_time, 2.0) - 1.0); // [0,1]区画を動く変数
-    float n = floor(8.0 * time); // ポスタリゼーションの階調数
-    return channel == ivec2(1, 0) ? step(time, v) : // 中央下:(a)ニ階調化
-        channel == ivec2(2, 0) ? (floor(n * v) + step(0.5, fract(n * v))) / n : // 右下:(b)ポスタリゼーション
-        channel == ivec2(0, 1) ? smoothstep(0.5 * (1.0 - time), 0.5 * (1.0 + time), v) : // 左上:(c)S字トーンカーブ
-        channel == ivec2(1, 1) ? pow(v, 2.0 * time) : // 中央上:(d)ガンマ補正
-        channel == ivec2(2, 1) ? 0.5 * sin(4.0 * PI * v + u_time) + 0.5 : // 右上:(e)ソラリゼーション
-        v; // 右下:元画像
+vec3 blend(float a, float b) {
+    float time = abs(mod(0.1 * u_time, 2.0) - 1.0);
+    vec3[2] col2 = vec3[](
+        vec3(a, a, 1), // aの値を青と白の中間色に変換
+        vec3(0, b, b) // bの値を黒と緑の中間色に変換
+    );
+    return channel == 0 ? mix(col2[0], col2[1], time) : // 左：一様な補完
+    mix(col2[0], col2[1], smoothstep(0.5 - 0.5 * time, 0.5 + 0.5 * time,
+    b / (a + b))); // 右：aとbの値に応じた補完
 }
 
 void main() {
     vec2 pos = gl_FragCoord.xy / min(u_resolution.x, u_resolution.y);
-    channel = ivec2(vec2(3, 2) * gl_FragCoord.xy / u_resolution.xy);
+    channel = int(2.0 * gl_FragCoord.x / u_resolution.x);
     pos = 10.0 * pos + u_time;
-    fragColor.rgb = vec3(converter(warp21(pos, 1.0))); // 階調変換関数の合成
+    float a = warp21(pos, 1.0);
+    float b = warp21(pos + 10.0, 1.0);
+    fragColor.rgb = blend(a, b);
     fragColor.a = 1.0;
 }
